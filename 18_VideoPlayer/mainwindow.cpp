@@ -35,7 +35,7 @@ void MainWindow::on_BtnFileOpen_clicked()
     if(filename.isEmpty()) return;
     qDebug() << filename;
     enableControlUI(true);
-    std::string name = filename.toStdString();
+    char* name = filename.toUtf8().data();
     _player->setFile(name);
     _player->play();
 }

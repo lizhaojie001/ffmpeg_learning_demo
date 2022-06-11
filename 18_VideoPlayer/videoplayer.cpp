@@ -75,11 +75,9 @@ bool VideoPlayer::isPlaying()
     return _state == Playing;
 }
 
-void VideoPlayer::setFile(std::string &filename)
+void VideoPlayer::setFile(char *filename)
 {
     _filename = filename;
-//    sprintf(_filename,filename);
-
 }
 
 
@@ -133,7 +131,7 @@ void VideoPlayer::readFile()
 
 
     // 创建解封装上下文、打开文件
-    ret = avformat_open_input(&_fmtCtx, _filename.c_str(), nullptr, nullptr);
+    ret = avformat_open_input(&_fmtCtx, _filename, nullptr, nullptr);
     END(avformat_open_input);
 
     // 检索流信息
@@ -141,7 +139,7 @@ void VideoPlayer::readFile()
     END(avformat_find_stream_info);
 
     // 打印流信息到控制台
-    av_dump_format(_fmtCtx, 0, _filename.c_str(), 0);
+    av_dump_format(_fmtCtx, 0, _filename, 0);
     fflush(stderr);
 
     _duration = _fmtCtx->duration;

@@ -49,7 +49,7 @@ public:
     int64_t getDuration();
 
     bool isPlaying();
-    void setFile(std::string &filename);
+    void setFile(char * filename);
 signals:
     void playStateChanged(VideoPlayer*p);
     void videoDuration(VideoPlayer*p);
@@ -67,8 +67,8 @@ private:
 /*************other *************/
 private:
     PlayState _state = Paused;
-//    char * _filename;
-    std::string _filename;
+    char * _filename;
+//    std::string _filename;
     AVFormatContext * _fmtCtx = nullptr;
     int64_t _duration;
 
