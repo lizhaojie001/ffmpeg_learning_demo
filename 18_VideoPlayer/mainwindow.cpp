@@ -12,9 +12,10 @@ MainWindow::MainWindow(QWidget *parent)
     _player = new VideoPlayer();
     connect(_player,&VideoPlayer::playStateChanged,this,&MainWindow::onPlayStateChanged);
     connect(_player,&VideoPlayer::videoDuration,this,&MainWindow::onVideoDuration);
-
+    ui->SliderVolume->setValue(50);
 
     enableControlUI(false);
+
 }
 
 MainWindow::~MainWindow()
@@ -35,7 +36,7 @@ void MainWindow::on_BtnFileOpen_clicked()
     if(filename.isEmpty()) return;
     qDebug() << filename;
     enableControlUI(true);
-    char* name = filename.toUtf8().data();
+    std::string name = filename.toStdString();
     _player->setFile(name);
     _player->play();
 }
@@ -115,6 +116,7 @@ QString MainWindow::timeText(int second)
 void MainWindow::on_SliderVolume_valueChanged(int value)
 {
     ui->LabelVolume->setText(QString("%1").arg(value));
+    _player->setVolume(value);
 }
 
 

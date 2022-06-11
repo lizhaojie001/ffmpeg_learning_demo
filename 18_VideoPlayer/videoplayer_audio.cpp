@@ -19,12 +19,15 @@ int VideoPlayer::initAudioInfo()
     qDebug() << "_is_planar:  " << _is_planar;
 
 
+
+    //初始化重采样上下文
+    ret = initSWR();
+    RET(initSWR);
     //初始化SDL
     ret = initSDL();
     RET(initSDL);
 
-    //初始化缓冲区
-    _aFrame = av_frame_alloc();
+
     return 0;
 }
 
@@ -60,29 +63,22 @@ int VideoPlayer::readAudioPkt()
 
     AVPacket pkt = _aPktList->front();
     _aPktList->pop_front();
-    int ret = avcodec_send_packet(_aCodecCtx,&pkt);
-    if (ret < 0) {
-        _aMutex->unlock();
-        return -1;
-    }
-
-    av_packet_unref(&pkt);
     _aMutex->unlock();
-    RET(avcodec_send_packet);
+    int ret = avcodec_send_packet(_aCodecCtx,&pkt);
+    RET(avcodec_send_packet)
+    av_packet_unref(&pkt);
 
-    ret = avcodec_receive_frame(_aCodecCtx,_aFrame);
-    if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
+    ret = avcodec_receive_frame(_aCodecCtx,_aSwrInFrame);
+    if (ret == AVERROR(EAGAIN) ) {
         return 0;
-    }else RET(avcodec_receive_frame);
+    }else if(ret == AVERROR_EOF){
+//        setState(Stoped);
+//        free();
+    } else RET(avcodec_receive_frame);
 
-    int size = _aFrame->nb_samples
-               * av_get_bytes_per_sample((AVSampleFormat)_aFrame->format)
-               * _aFrame->channels;
-    AVSampleFormat fmt = (AVSampleFormat)_aStream->codecpar->format;
-   if (fmtMap[fmt] != SUPPORT_SAMPLE_FMT) { //判断是否需要重采样
-        resamplePCM();
-   }
-   return size;
+
+   return resamplePCM();
+//   return _aSwrInFrame->nb_samples*_aSwrInSpec.bytesPerSampleFrame;
 
 }
 
@@ -92,13 +88,13 @@ int VideoPlayer::initSDL()
 
     SDL_AudioSpec spec;
     //采样率
-    spec.freq = 44100;
+    spec.freq = _aSwrOutSpec.sample_rate;
     //采样格式
     spec.format = AUDIO_S16LSB;
     //声道数
-    spec.channels = 2;
+    spec.channels = _aSwrOutSpec.chs;
     //音频缓冲区样本数  值为2的n次幂
-    spec.samples = 1024;
+    spec.samples = 512;
     //回调
     spec.callback = onAudioCallback;
 
@@ -115,8 +111,76 @@ int VideoPlayer::initSDL()
     return ret;
 }
 
-void VideoPlayer::resamplePCM()
+int VideoPlayer::initSWR()
 {
+    int ret = 0;
+    _aSwrInSpec.chLayout = _aCodecCtx->channel_layout;
+    _aSwrInSpec.chs = _aCodecCtx->ch_layout.nb_channels;
+    _aSwrInSpec.sample_format = _aCodecCtx->sample_fmt;
+    _aSwrInSpec.sample_rate = _aCodecCtx->sample_rate;
+    _aSwrInSpec.bytesPerSampleFrame = av_get_bytes_per_sample(_aSwrInSpec.sample_format)
+                                       * _aSwrInSpec.chs;
+
+
+    _aSwrOutSpec.chLayout = AV_CH_LAYOUT_STEREO;
+    _aSwrOutSpec.chs = av_get_channel_layout_nb_channels(_aSwrOutSpec.chLayout);
+    _aSwrOutSpec.sample_format = AV_SAMPLE_FMT_S16;
+    _aSwrOutSpec.sample_rate = 44100;
+    _aSwrOutSpec.bytesPerSampleFrame = av_get_bytes_per_sample(_aSwrOutSpec.sample_format)
+                                      * _aSwrOutSpec.chs;
+    //创建采样上下文
+    _SwrCtx = swr_alloc_set_opts(nullptr,
+                                         _aSwrOutSpec.chLayout,
+                                         _aSwrOutSpec.sample_format,
+                                         _aSwrOutSpec.sample_rate,
+                                         _aSwrInSpec.chLayout,
+                                         _aSwrInSpec.sample_format,
+                                         _aSwrInSpec.sample_rate,
+                                         0,
+                                         nullptr);
+    if (!_SwrCtx) {
+        qDebug() << "swr_alloc_set_opts error";
+        return -1;
+    }
+    //初始化
+    //初始化上下文
+    ret = swr_init(_SwrCtx);
+    RET(swr_init);
+
+    //初始化缓冲区
+    _aSwrInFrame = av_frame_alloc();
+    if (!_aSwrInFrame) {
+        qDebug() << "av_frame_alloc error";
+        return -1;
+    }
+
+    _aSwrOutFrame = av_frame_alloc();
+    ret = av_samples_alloc(_aSwrOutFrame->data,_aSwrOutFrame->linesize,
+                                             _aSwrOutSpec.chs,
+                                             4096,
+                                             _aSwrOutSpec.sample_format,
+                                             1);
+    RET(av_samples_alloc);
+    return ret;
+}
+
+int  VideoPlayer::resamplePCM()
+{
+    int out_nb_samples = av_rescale_rnd(_aSwrOutSpec.sample_rate,
+                                        _aSwrInFrame->nb_samples,
+                                        _aSwrInSpec.sample_rate,
+                                        AV_ROUND_UP);
+
+    //返回采样数量
+    int ret = swr_convert(_SwrCtx,_aSwrOutFrame->data,out_nb_samples,
+                      (const uint8_t**)_aSwrInFrame->data,_aSwrInFrame->nb_samples);
+
+    int len = ret * _aSwrOutSpec.bytesPerSampleFrame;
+//    if (len > 0) {
+//        _file->write((const char *)_aSwrOutFrame->data[0],len);
+//    }
+    RET(swr_convert);
+    return len;
 
 }
 
@@ -128,14 +192,45 @@ void VideoPlayer::onAudioCallback(void *userdata, Uint8 *stream, int len)
 
 void VideoPlayer::doAudioCallback(Uint8 *stream, int len)
 {
-    int size = 0;
-    while (true) {
-         size = readAudioPkt();
-        qDebug() << "doAudioCallback" << size;
-//        if (size) {
-//            SDL_MixAudio(stream,(Uint8 *)_aFrame->data,size,SDL_MIX_MAXVOLUME);
-//            len -= size;
-//            stream += size;
-//        }
+
+    //清空steam;
+    SDL_memset(stream,0,len);
+    int volume = SDL_MIX_MAXVOLUME * _volume / 100.0;
+    while (len > 0) {
+        if (_state == Stoped) {
+            break;
+        }
+        if ( _startOffsetIndex >= _swrOutSize ) {
+            _swrOutSize = readAudioPkt();
+            qDebug() << "doAudioCallback" << len <<  _swrOutSize;
+            if (_swrOutSize <= 0) {
+                memset(_aSwrOutFrame->data[0],0,_swrOutSize = 1024);
+            }
+            _startOffsetIndex = 0;
+        }
+
+         int scrLen = _swrOutSize - _startOffsetIndex;
+         scrLen = fmin(scrLen,len);
+         SDL_MixAudio(stream,_aSwrOutFrame->data[0] + _startOffsetIndex,scrLen,volume);
+         len -= scrLen;
+         stream += scrLen;
+         _startOffsetIndex += scrLen;
     }
+}
+
+
+void VideoPlayer::freeAudio() {
+
+    clearAudioPktList();
+    avcodec_free_context(&_aCodecCtx);
+    swr_free(&_SwrCtx);
+    av_frame_free(&_aSwrInFrame);
+    if (_aSwrOutFrame) {
+        av_freep(&_aSwrOutFrame->data[0]);
+        av_frame_free(&_aSwrOutFrame);
+    }
+
+    // 停止播放
+    SDL_PauseAudio(1);
+    SDL_CloseAudio();
 }

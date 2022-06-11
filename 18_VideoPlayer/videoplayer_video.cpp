@@ -1,4 +1,5 @@
 ﻿#include "videoplayer.h"
+#include <QDebug>
 extern "C"{
 #include <libavutil/imgutils.h>
 }
@@ -9,6 +10,7 @@ int VideoPlayer::initVideoInfo()
     int ret = 0;
     ret = initDecoder(&_vCodecCtx,AVMEDIA_TYPE_VIDEO,&_vStream);
 
+    RET(initDecoder);
     //一帧大小
     _imageSize = av_image_get_buffer_size(_vCodecCtx->pix_fmt,_vCodecCtx->width,_vCodecCtx->height,1);
 
@@ -39,5 +41,9 @@ void VideoPlayer::addVideoPkt(AVPacket &pkt)
 
 void VideoPlayer::readVideoPkt()
 {
+
+}
+
+void VideoPlayer::freeVideo(){
 
 }

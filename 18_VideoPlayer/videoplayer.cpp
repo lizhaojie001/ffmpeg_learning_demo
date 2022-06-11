@@ -20,6 +20,22 @@ VideoPlayer::VideoPlayer(QObject *parent)
     _aPktList = new std::list<AVPacket>();
     _vPktList = new std::list<AVPacket>();
 
+    _file = new QFile("E:/out_ooo.pcm");
+    _file->open(QFile::WriteOnly);
+
+
+}
+
+
+
+void VideoPlayer::free() {
+    freeAudio();
+    freeVideo();
+
+
+    avcodec_close(_aCodecCtx);
+    avcodec_close(_vCodecCtx);
+    avformat_close_input(&_fmtCtx);
 }
 
 VideoPlayer::~VideoPlayer()
@@ -28,9 +44,6 @@ VideoPlayer::~VideoPlayer()
     delete _aMutex;
     delete _aPktList;
     delete _vPktList;
-
-    //关闭设备
-    SDL_CloseAudio();
     SDL_Quit();
 }
 
@@ -42,7 +55,10 @@ void VideoPlayer::play()
   qDebug() <<"文件名" << QString::fromStdString(_filename);
   std::thread  rg([this]() {
       qDebug() <<"子线程" <<"文件名" << QString::fromStdString(_filename);
-        readFile();
+          if (readFile() < 0) {
+             qDebug() << "读取文件失败";
+              emit playFailed(this);
+          }
   });
   rg.detach();
 }
@@ -57,7 +73,7 @@ void VideoPlayer::pause()
 void VideoPlayer::stop()
 {
     setState(Stoped);
-
+    free();
 }
 
 VideoPlayer::PlayState VideoPlayer::state()
@@ -75,9 +91,14 @@ bool VideoPlayer::isPlaying()
     return _state == Playing;
 }
 
-void VideoPlayer::setFile(char *filename)
+void VideoPlayer::setFile(std::string &filename)
 {
     _filename = filename;
+}
+
+void VideoPlayer::setVolume(int volume)
+{
+    _volume = volume;
 }
 
 
@@ -125,32 +146,30 @@ void VideoPlayer::setState(PlayState state)
     emit playStateChanged(this);
 }
 
-void VideoPlayer::readFile()
+int VideoPlayer::readFile()
 {
     int ret = 0;
-
-
     // 创建解封装上下文、打开文件
-    ret = avformat_open_input(&_fmtCtx, _filename, nullptr, nullptr);
-    END(avformat_open_input);
+    ret = avformat_open_input(&_fmtCtx, _filename.c_str(), nullptr, nullptr);
+    RET(avformat_open_input);
 
     // 检索流信息
     ret = avformat_find_stream_info(_fmtCtx, nullptr);
-    END(avformat_find_stream_info);
+    RET(avformat_find_stream_info);
 
     // 打印流信息到控制台
-    av_dump_format(_fmtCtx, 0, _filename, 0);
+    av_dump_format(_fmtCtx, 0, _filename.c_str(), 0);
     fflush(stderr);
 
     _duration = _fmtCtx->duration;
     emit videoDuration(this);
     //初始化视频模块
     ret = initVideoInfo();
-    END(initVideoInfo);
+    RET(initVideoInfo);
 
     //初始化音频模块
     ret = initAudioInfo();
-    END(initAudioInfo);
+    RET(initAudioInfo);
 
 
     //读取数据
@@ -159,22 +178,17 @@ void VideoPlayer::readFile()
         ret = av_read_frame(_fmtCtx,&pkt) ;
         if (ret == 0) {
             if(pkt.stream_index == _aStream->index) {
-               addAudioPkt(pkt);
+                addAudioPkt(pkt);
             } else if(pkt.stream_index == _vStream->index) {
-               addVideoPkt(pkt);
+                addVideoPkt(pkt);
             }
+        } else if(ret == AVERROR_EOF) {
+            break;
         }else {
             continue;
         }
     }
 
-
-end:
-
-
-    avcodec_close(_aCodecCtx);
-    avcodec_close(_vCodecCtx);
-    avformat_close_input(&_fmtCtx);
-
+    return 0;
 
 }
