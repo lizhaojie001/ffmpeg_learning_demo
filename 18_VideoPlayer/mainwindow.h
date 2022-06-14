@@ -23,8 +23,6 @@ private slots:
 
     void on_BtnStop_clicked();
 
-    void on_BtnMute_clicked();
-
     void onPlayStateChanged(VideoPlayer*p);
 
     void onVideoDuration(VideoPlayer*p);
@@ -32,6 +30,8 @@ private slots:
     void on_SliderVolume_valueChanged(int value);
 
     void on_SliderCurrent_valueChanged(int value);
+
+    void on_BtnMute_toggled(bool checked);
 
 private:
 

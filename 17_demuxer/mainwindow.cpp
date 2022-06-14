@@ -3,7 +3,6 @@
 #include "audiothread.h"
 #include <QDebug>
 #include "playthread.h"
-#include "CommonDefine.h"
 
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)

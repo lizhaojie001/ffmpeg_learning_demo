@@ -8,6 +8,7 @@ extern "C" {
 #include <libavcodec/avcodec.h>
 #include <libavformat/avformat.h>
 #include <libswresample/swresample.h>
+#include <libswscale/swscale.h>
 }
 
 
@@ -43,6 +44,14 @@ public:
         Paused,
         Stoped
     };
+
+    struct SwsVideoSpec
+    {
+        int width;
+        int height;
+        AVPixelFormat pix_fmt;
+    };
+
     void play();
     void pause();
     void stop();
@@ -52,11 +61,12 @@ public:
     bool isPlaying();
     void setFile(std::string& filename);
     void setVolume(int volume);
+    void setMute(bool mute);
 signals:
     void playStateChanged(VideoPlayer*p);
     void videoDuration(VideoPlayer*p);
     void playFailed(VideoPlayer *p);
-
+    void playerVideoDeceoded(VideoPlayer*p, uint8_t * data, SwsVideoSpec &spec);
 private:
 
 
@@ -89,15 +99,22 @@ private:
     AVCodecContext * _vCodecCtx = nullptr;
     std::list<AVPacket> *_vPktList = nullptr;
     QMutexCond * _vMutex = nullptr;
-    AVFrame * _vFrame = nullptr;
 
+    //格式转换上下文
+    SwsContext * _vSwsCtx = nullptr;
+    //格式转换缓冲区
+    AVFrame * _vSwsOutFrame = nullptr, * _vSwsInFrame = nullptr;
+
+
+    SwsVideoSpec _vSwsOutSpec;
 private:
     int initVideoInfo();
     void clearVideoPktList();
     void addVideoPkt(AVPacket &pkt);
     void readVideoPkt();
     void freeVideo();
-
+    //初始化格式转换上下文
+    int initSws();
 /*************audio *************/
 private:
     AVStream * _aStream = nullptr;
@@ -105,6 +122,7 @@ private:
     std::list<AVPacket> *_aPktList = nullptr;
     QMutexCond * _aMutex = nullptr;
     int _volume;
+    bool _mute = false;
     struct SwrAudioSpec
     {
         int  chLayout;
@@ -132,11 +150,9 @@ private:
     //初始化SDL
     int initSDL();
     //重采样pcm数据
-
     int initSWR();
     int resamplePCM();
     void freeAudio();
-
 
     static void onAudioCallback(void *userdata, Uint8 * stream,
                         int len);

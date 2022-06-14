@@ -12,6 +12,8 @@ MainWindow::MainWindow(QWidget *parent)
     _player = new VideoPlayer();
     connect(_player,&VideoPlayer::playStateChanged,this,&MainWindow::onPlayStateChanged);
     connect(_player,&VideoPlayer::videoDuration,this,&MainWindow::onVideoDuration);
+    connect(_player,&VideoPlayer::playerVideoDeceoded,ui->playerWidget
+            ,&VideoWidget::onPlayerVideoDeceoded);
     ui->SliderVolume->setValue(50);
 
     enableControlUI(false);
@@ -58,10 +60,6 @@ void MainWindow::on_BtnStop_clicked()
 }
 
 
-void MainWindow::on_BtnMute_clicked()
-{
-
-}
 
 void MainWindow::onPlayStateChanged(VideoPlayer *p)
 {
@@ -71,7 +69,6 @@ void MainWindow::onPlayStateChanged(VideoPlayer *p)
         ui->BtnPlay->setText("播放");
         if (p->state() == VideoPlayer::Stoped) {
             enableControlUI(false);
-            ui->stackedWidget->setCurrentWidget(ui->PlayerFileOpenWidget);
         }
     }
 }
@@ -95,6 +92,9 @@ void MainWindow::enableControlUI(bool enable)
         ui->LabelCurrent->setText(timeText(0));
         ui->LabelDuration->setText(timeText(0));
         ui->SliderCurrent->setValue(ui->SliderCurrent->minimum());
+        ui->stackedWidget->setCurrentWidget(ui->PlayerFileOpenWidget);
+    } else {
+        ui->stackedWidget->setCurrentWidget(ui->VideoPlayerWidiget);
     }
 
 }
@@ -123,5 +123,12 @@ void MainWindow::on_SliderVolume_valueChanged(int value)
 void MainWindow::on_SliderCurrent_valueChanged(int value)
 {
   ui->LabelCurrent->setText(timeText(value));
+}
+
+
+void MainWindow::on_BtnMute_toggled(bool checked)
+{
+    ui->BtnMute->setText( checked ? "已静音" : "静音");
+    _player->setMute(checked);
 }
 

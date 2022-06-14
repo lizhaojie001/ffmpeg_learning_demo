@@ -12,7 +12,7 @@ VideoPlayer::VideoPlayer(QObject *parent)
         const char * err = SDL_GetError();
         qDebug() << err ;
         SDL_Quit();
-        playFailed(this);
+        emit playFailed(this);
         return;
     }
     _vMutex = new QMutexCond();
@@ -101,6 +101,11 @@ void VideoPlayer::setVolume(int volume)
     _volume = volume;
 }
 
+void VideoPlayer::setMute(bool mute)
+{
+    _mute = mute;
+}
+
 
 
 int VideoPlayer::initDecoder(AVCodecContext **ctx, AVMediaType type, AVStream **stream)
@@ -110,13 +115,13 @@ int VideoPlayer::initDecoder(AVCodecContext **ctx, AVMediaType type, AVStream **
     RET(ret);
     int streamIndex = ret;
     //获取stream
-    *stream = _fmtCtx->streams[streamIndex];
-    if(!(*stream)) {
+    AVStream * st = _fmtCtx->streams[streamIndex];
+    if(!st) {
         qDebug() << " _fmtCtx->streams[ret] error";
         return -1;
     }
     //找到对应的解码器
-    const AVCodec * decoder = avcodec_find_decoder((*stream)->codecpar->codec_id);
+    const AVCodec * decoder = avcodec_find_decoder(st->codecpar->codec_id);
     if(!decoder) {
         qDebug() << "avcodec_find_decoder error";
         return -1;
@@ -128,12 +133,14 @@ int VideoPlayer::initDecoder(AVCodecContext **ctx, AVMediaType type, AVStream **
         return -1;
     }
     // 从输入流中copy参数到解码器上下文
-    ret = avcodec_parameters_to_context(*ctx,(*stream)->codecpar);
+    ret = avcodec_parameters_to_context(*ctx,st->codecpar);
     RET(avcodec_parameters_to_context);
 
     //打开解码器
     ret = avcodec_open2(*ctx,decoder,nullptr);
     RET(avcodec_open2);
+
+    *stream = st;
 
 
     return 0;
@@ -163,18 +170,21 @@ int VideoPlayer::readFile()
 
     _duration = _fmtCtx->duration;
     emit videoDuration(this);
+
+
     //初始化视频模块
-    ret = initVideoInfo();
-    RET(initVideoInfo);
-
+    bool initV = initVideoInfo() >= 0;
+    bool initA = initAudioInfo() >= 0;
     //初始化音频模块
-    ret = initAudioInfo();
-    RET(initAudioInfo);
+    if(!(initV||initA)) return -1;
 
+//    std::thread([this]() {
+//        readVideoPkt();
+//    }).detach();
 
     //读取数据
+    AVPacket pkt ;
     while (true) {
-        AVPacket pkt;
         ret = av_read_frame(_fmtCtx,&pkt) ;
         if (ret == 0) {
             if(pkt.stream_index == _aStream->index) {
@@ -183,6 +193,7 @@ int VideoPlayer::readFile()
                 addVideoPkt(pkt);
             }
         } else if(ret == AVERROR_EOF) {
+            qDebug() << "读取到文件尾部";
             break;
         }else {
             continue;

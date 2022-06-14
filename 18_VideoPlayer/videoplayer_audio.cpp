@@ -195,7 +195,7 @@ void VideoPlayer::doAudioCallback(Uint8 *stream, int len)
 
     //清空steam;
     SDL_memset(stream,0,len);
-    int volume = SDL_MIX_MAXVOLUME * _volume / 100.0;
+    int volume = _mute ? 0 : SDL_MIX_MAXVOLUME * _volume / 100.0;
     while (len > 0) {
         if (_state == Stoped) {
             break;
@@ -211,6 +211,7 @@ void VideoPlayer::doAudioCallback(Uint8 *stream, int len)
 
          int scrLen = _swrOutSize - _startOffsetIndex;
          scrLen = fmin(scrLen,len);
+
          SDL_MixAudio(stream,_aSwrOutFrame->data[0] + _startOffsetIndex,scrLen,volume);
          len -= scrLen;
          stream += scrLen;
