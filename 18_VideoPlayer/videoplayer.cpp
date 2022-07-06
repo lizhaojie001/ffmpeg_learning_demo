@@ -178,9 +178,9 @@ int VideoPlayer::readFile()
     //初始化音频模块
     if(!(initV||initA)) return -1;
 
-//    std::thread([this]() {
-//        readVideoPkt();
-//    }).detach();
+    std::thread([this]() {
+        readVideoPkt();
+    }).detach();
 
     //读取数据
     AVPacket pkt ;

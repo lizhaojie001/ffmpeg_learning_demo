@@ -79,16 +79,15 @@ void VideoPlayer::readVideoPkt()
                     qDebug() << "avcodec_receive_frame error";
                     break;
                 }
-
-                //格式转换
-                ret = sws_scale(_vSwsCtx,_vSwsInFrame->data,_vSwsInFrame->linesize,
-                                0,_vCodecCtx->height,
-                                _vSwsOutFrame->data,_vSwsOutFrame->linesize);
-
-                SDL_Delay(33);
-                //发送信号数据
-                emit playerVideoDeceoded(this,_vSwsOutFrame->data[0],_vSwsOutSpec);
             }
+            //格式转换
+            ret = sws_scale(_vSwsCtx,_vSwsInFrame->data,_vSwsInFrame->linesize,
+                            0,_vCodecCtx->height,
+                            _vSwsOutFrame->data,_vSwsOutFrame->linesize);
+
+            SDL_Delay(33);
+            //发送信号数据
+            emit playerVideoDeceoded(this,_vSwsOutFrame->data[0],_vSwsOutSpec);
 
 
     }
