@@ -11,9 +11,13 @@ MainWindow::MainWindow(QWidget *parent)
 
     _player = new VideoPlayer();
     connect(_player,&VideoPlayer::playStateChanged,this,&MainWindow::onPlayStateChanged);
+    connect(_player,&VideoPlayer::timeChanged,this,&MainWindow::onPlayTimeChanged);
+
     connect(_player,&VideoPlayer::videoDuration,this,&MainWindow::onVideoDuration);
     connect(_player,&VideoPlayer::playerVideoDeceoded,ui->playerWidget
             ,&VideoWidget::onPlayerVideoDeceoded);
+    connect(_player,&VideoPlayer::playStateChanged,ui->playerWidget
+            ,&VideoWidget::onPlayerVideoStateChanged);
     ui->SliderVolume->setValue(50);
 
     enableControlUI(false);
@@ -73,10 +77,14 @@ void MainWindow::onPlayStateChanged(VideoPlayer *p)
     }
 }
 
+void MainWindow::onPlayTimeChanged(VideoPlayer *p)
+{
+    ui->SliderCurrent->setValue(p->getCurrent());
+}
+
 void MainWindow::onVideoDuration(VideoPlayer *p)
 {
-    int64_t ns = p->getDuration();
-    int second = ns / 1000000;
+    int second = p->getDuration();
     ui->LabelDuration->setText(timeText(second));
     ui->SliderCurrent->setMaximum(second);
 }

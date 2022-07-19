@@ -14,6 +14,7 @@ public slots:
     void onPlayerVideoDeceoded(VideoPlayer* p,
                                uint8_t* data,
                                VideoPlayer::SwsVideoSpec &spec);
+    void onPlayerVideoStateChanged(VideoPlayer* p);
 signals:
 
 
@@ -22,6 +23,7 @@ private:
     QRect _rect;
 
     void paintEvent(QPaintEvent *event) override;
+    void _freeImage();
 };
 
 #endif // VIDEOWIDGET_H

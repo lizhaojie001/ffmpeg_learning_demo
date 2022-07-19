@@ -64,7 +64,14 @@ int VideoPlayer::readAudioPkt()
     AVPacket pkt = _aPktList->front();
     _aPktList->pop_front();
     _aMutex->unlock();
+    if (pkt.pts != AV_NOPTS_VALUE) {
+        _aClock = av_q2d(_aStream->time_base) * pkt.pts;
+        qDebug() << "_aClock" <<_aClock;
+        emit timeChanged(this);
+    }
+
     int ret = avcodec_send_packet(_aCodecCtx,&pkt);
+
     RET(avcodec_send_packet)
     av_packet_unref(&pkt);
 
@@ -202,7 +209,6 @@ void VideoPlayer::doAudioCallback(Uint8 *stream, int len)
         }
         if ( _startOffsetIndex >= _swrOutSize ) {
             _swrOutSize = readAudioPkt();
-            qDebug() << "doAudioCallback" << len <<  _swrOutSize;
             if (_swrOutSize <= 0) {
                 memset(_aSwrOutFrame->data[0],0,_swrOutSize = 1024);
             }
@@ -230,7 +236,9 @@ void VideoPlayer::freeAudio() {
         av_freep(&_aSwrOutFrame->data[0]);
         av_frame_free(&_aSwrOutFrame);
     }
-
+    _startOffsetIndex = 0;
+    _swrOutSize = 0;
+    _aClock = 0;
     // 停止播放
     SDL_PauseAudio(1);
     SDL_CloseAudio();

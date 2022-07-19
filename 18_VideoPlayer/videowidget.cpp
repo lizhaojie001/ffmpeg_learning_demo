@@ -8,10 +8,7 @@ VideoWidget::VideoWidget(QWidget *parent)
 
 VideoWidget::~VideoWidget()
 {
-    if(_image) {
-        delete _image;
-        _image = nullptr;
-    }
+  _freeImage();
 
 }
 
@@ -19,15 +16,17 @@ void VideoWidget::onPlayerVideoDeceoded(VideoPlayer *p,
                                         uint8_t *data,
                                         VideoPlayer::SwsVideoSpec &spec)
 {
-    if(_image) {
-        delete _image;
-        _image = nullptr;
-    }
-
+    if (p->state() == VideoPlayer::Stoped) return;
+    _freeImage();
     _image = new QImage((uchar *)data,spec.width,spec.height,QImage::Format_RGB888);
-
     update();
+}
 
+void VideoWidget::onPlayerVideoStateChanged(VideoPlayer *p)
+{
+    if (p->state() == VideoPlayer::Stoped) {
+        _freeImage();
+    }
 }
 
 void VideoWidget::paintEvent(QPaintEvent *event)
@@ -54,5 +53,15 @@ void VideoWidget::paintEvent(QPaintEvent *event)
     dx = (width() - dw)>>1;
     dy = (height() - dh)>>1;
     painter.drawImage(QRect(dx,dy,dw,dh),*_image);
+}
+
+void VideoWidget::_freeImage()
+{
+    if(_image) {
+        delete _image;
+        _image = nullptr;
+        update();
+    }
+
 }
 

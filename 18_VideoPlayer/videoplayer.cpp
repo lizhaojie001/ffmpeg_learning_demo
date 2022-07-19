@@ -2,6 +2,10 @@
 #include <QDebug>
 #include "thread"
 
+
+#define AUDIO_MAX_PACKET_NUM 1000
+#define VIDEO_MAX_PACKET_NUM 500
+
 VideoPlayer::VideoPlayer(QObject *parent)
     : QObject{parent}
 {
@@ -31,10 +35,6 @@ VideoPlayer::VideoPlayer(QObject *parent)
 void VideoPlayer::free() {
     freeAudio();
     freeVideo();
-
-
-    avcodec_close(_aCodecCtx);
-    avcodec_close(_vCodecCtx);
     avformat_close_input(&_fmtCtx);
 }
 
@@ -51,29 +51,35 @@ VideoPlayer::~VideoPlayer()
 void VideoPlayer::play()
 {
   if (isPlaying()) return;
-  setState(Playing);
-  qDebug() <<"文件名" << QString::fromStdString(_filename);
-  std::thread  rg([this]() {
-      qDebug() <<"子线程" <<"文件名" << QString::fromStdString(_filename);
+   if (_state == Stoped) {
+      std::thread  rg([this]() {
           if (readFile() < 0) {
-             qDebug() << "读取文件失败";
+              qDebug() << "读取文件失败";
               emit playFailed(this);
           }
-  });
-  rg.detach();
+      });
+      rg.detach();
+  } else {
+      setState(Playing);
+  }
+
 }
 
 void VideoPlayer::pause()
 {
     if (!isPlaying()) return;
-   setState(Paused);
+      setState(Paused);
 
 }
 
 void VideoPlayer::stop()
 {
+    if (_state == Stoped) return;
     setState(Stoped);
-    free();
+    std::thread([&]() {
+        SDL_Delay(100);
+        free();
+    }).detach();
 }
 
 VideoPlayer::PlayState VideoPlayer::state()
@@ -81,9 +87,14 @@ VideoPlayer::PlayState VideoPlayer::state()
     return _state;
 }
 
-int64_t VideoPlayer::getDuration()
+int VideoPlayer::getDuration()
 {
-    return  _duration;
+    return  round(_duration / 1000000.0);
+}
+
+int VideoPlayer::getCurrent()
+{
+    return ceil(_aClock);
 }
 
 bool VideoPlayer::isPlaying()
@@ -151,6 +162,7 @@ void VideoPlayer::setState(PlayState state)
 {
     _state = state;
     emit playStateChanged(this);
+
 }
 
 int VideoPlayer::readFile()
@@ -178,6 +190,9 @@ int VideoPlayer::readFile()
     //初始化音频模块
     if(!(initV||initA)) return -1;
 
+    emit initFinish(this);
+    setState(Playing);
+
     std::thread([this]() {
         readVideoPkt();
     }).detach();
@@ -185,17 +200,28 @@ int VideoPlayer::readFile()
     //读取数据
     AVPacket pkt ;
     while (true) {
+        if(_state == Stoped) break;
+
+        if (_aPktList->size() > AUDIO_MAX_PACKET_NUM || _vPktList->size() > VIDEO_MAX_PACKET_NUM){
+            SDL_Delay(5);
+            continue;
+        }
+
+        qDebug() << _aPktList->size() <<  _vPktList->size();
         ret = av_read_frame(_fmtCtx,&pkt) ;
         if (ret == 0) {
             if(pkt.stream_index == _aStream->index) {
                 addAudioPkt(pkt);
             } else if(pkt.stream_index == _vStream->index) {
                 addVideoPkt(pkt);
+            } else {
+                av_packet_unref(&pkt);
             }
         } else if(ret == AVERROR_EOF) {
             qDebug() << "读取到文件尾部";
             break;
         }else {
+            ERROR_BUF;
             continue;
         }
     }

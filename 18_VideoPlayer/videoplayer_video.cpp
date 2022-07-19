@@ -45,7 +45,6 @@ void VideoPlayer::addVideoPkt(AVPacket &pkt)
 void VideoPlayer::readVideoPkt()
 {
     while (true) {
-        qDebug() << "读取视频数据";
         if (_state == Stoped) {
             break;
         }
@@ -54,47 +53,67 @@ void VideoPlayer::readVideoPkt()
             _vMutex->lock();
             if (_vPktList->empty()) {
                 _vMutex->unlock();
-                SDL_Delay(33);
+                SDL_Delay(5);
                 continue ;
             }
 
             AVPacket pkt = _vPktList->front();
             _vPktList->pop_front();
             _vMutex->unlock();
+            if (pkt.pts != AV_NOPTS_VALUE) {
+                _vClock = av_q2d(_vStream->time_base) * pkt.dts;
+                qDebug() << "_vClock" <<_vClock;
+            }
             int ret = avcodec_send_packet(_vCodecCtx,&pkt);
+
             av_packet_unref(&pkt);
             if (ret < 0) {
-                qDebug() << "avcodec_send_packet";
+                qDebug() << "avcodec_send_packet error";
                 break;
             }
             while (true) {
                 ret = avcodec_receive_frame(_vCodecCtx,_vSwsInFrame);
-                if (ret == AVERROR(EAGAIN) ) {
-                    qDebug() << "avcodec_receive_frame";
+                if (ret == AVERROR(EAGAIN) || ret == AVERROR_EOF) {
                     break;
-                }else if(ret == AVERROR_EOF){
-                    qDebug() << "avcodec_receive_frame eof";
-                    break;
-                } else {
-                    qDebug() << "avcodec_receive_frame error";
+                } else{
+                    ERROR_BUF;
+                    qDebug() << "avcodec_receive_frame error" << errbuf; \
                     break;
                 }
             }
-            //格式转换
-            ret = sws_scale(_vSwsCtx,_vSwsInFrame->data,_vSwsInFrame->linesize,
-                            0,_vCodecCtx->height,
-                            _vSwsOutFrame->data,_vSwsOutFrame->linesize);
 
-            SDL_Delay(33);
+            //格式转换
+            sws_scale(_vSwsCtx,_vSwsInFrame->data,_vSwsInFrame->linesize,
+                      0,_vCodecCtx->height,
+                      _vSwsOutFrame->data,_vSwsOutFrame->linesize);
+
+            while (_vClock > _aClock && _state == Playing) {
+                SDL_Delay(5);
+            }
             //发送信号数据
             emit playerVideoDeceoded(this,_vSwsOutFrame->data[0],_vSwsOutSpec);
+
 
 
     }
 }
 
 void VideoPlayer::freeVideo(){
-
+    avcodec_free_context(&_vCodecCtx);
+    clearVideoPktList();
+    if (_vSwsCtx) {
+        sws_freeContext(_vSwsCtx);
+    }
+    if (_vSwsOutFrame) {
+        av_freep(&_vSwsOutFrame->data[0]);
+        av_frame_free(&_vSwsOutFrame);
+    }
+    if (_vSwsInFrame) {
+        av_frame_free(&_vSwsInFrame);
+    }
+    _vStream = nullptr;
+    _vSwsCtx=  nullptr;
+    _vClock = -1;
 }
 
 int VideoPlayer::initSws()

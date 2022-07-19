@@ -56,7 +56,8 @@ public:
     void pause();
     void stop();
     PlayState state();
-    int64_t getDuration();
+    int getDuration();
+    int getCurrent();
 
     bool isPlaying();
     void setFile(std::string& filename);
@@ -65,8 +66,10 @@ public:
 signals:
     void playStateChanged(VideoPlayer*p);
     void videoDuration(VideoPlayer*p);
+    void timeChanged(VideoPlayer*p);
     void playFailed(VideoPlayer *p);
     void playerVideoDeceoded(VideoPlayer*p, uint8_t * data, SwsVideoSpec &spec);
+    void initFinish(VideoPlayer*);
 private:
 
 
@@ -80,7 +83,7 @@ private:
 
 /*************other *************/
 private:
-    PlayState _state = Paused;
+    PlayState _state = Stoped;
 //    char * _filename;
     std::string _filename;
     AVFormatContext * _fmtCtx = nullptr;
@@ -107,6 +110,8 @@ private:
 
 
     SwsVideoSpec _vSwsOutSpec;
+
+    double _vClock = -1;
 private:
     int initVideoInfo();
     void clearVideoPktList();
@@ -115,6 +120,8 @@ private:
     void freeVideo();
     //初始化格式转换上下文
     int initSws();
+
+
 /*************audio *************/
 private:
     AVStream * _aStream = nullptr;
@@ -141,6 +148,9 @@ private:
     int _startOffsetIndex = 0;
     //重采样后大小
     int _swrOutSize = 0;
+
+    //音频时钟
+    double _aClock = 0;
 
 private:
     int initAudioInfo();

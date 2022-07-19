@@ -25,6 +25,9 @@ private slots:
 
     void onPlayStateChanged(VideoPlayer*p);
 
+    void onPlayTimeChanged(VideoPlayer*p);
+
+
     void onVideoDuration(VideoPlayer*p);
 
     void on_SliderVolume_valueChanged(int value);
