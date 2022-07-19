@@ -40,6 +40,8 @@ void VideoPlayer::free() {
 
 VideoPlayer::~VideoPlayer()
 {
+    _state = Playing;
+    stop();
     delete _vMutex;
     delete _aMutex;
     delete _aPktList;
@@ -95,6 +97,11 @@ int VideoPlayer::getDuration()
 int VideoPlayer::getCurrent()
 {
     return ceil(_aClock);
+}
+
+int VideoPlayer::setTime(int secound)
+{
+    seekTime = secound;
 }
 
 bool VideoPlayer::isPlaying()
@@ -193,14 +200,38 @@ int VideoPlayer::readFile()
     emit initFinish(this);
     setState(Playing);
 
+
+    //设置播放起始位置
+    SDL_PauseAudio(0);
+
+
     std::thread([this]() {
         readVideoPkt();
     }).detach();
 
     //读取数据
     AVPacket pkt ;
-    while (true) {
-        if(_state == Stoped) break;
+    while (_state != Stoped) {
+        if (seekTime >= 0) {
+            int index = 0;
+            if (initA) {
+                index = _aStream->index;
+            } else if (initV) {
+                index = _vStream->index;
+            }
+            AVRational baseTime = _fmtCtx->streams[index]->time_base;
+            int64_t ts = seekTime/av_q2d(baseTime);
+            ret = av_seek_frame(_fmtCtx,index,ts,AVSEEK_FLAG_BACKWARD);
+            if (ret < 0) {
+                seekTime = -1;
+            } else {
+                seekTime = -1;
+                clearAudioPktList();
+                clearVideoPktList();
+                _aClock = 0;
+                _vClock = -1;
+            }
+        }
 
         if (_aPktList->size() > AUDIO_MAX_PACKET_NUM || _vPktList->size() > VIDEO_MAX_PACKET_NUM){
             SDL_Delay(5);
@@ -218,8 +249,7 @@ int VideoPlayer::readFile()
                 av_packet_unref(&pkt);
             }
         } else if(ret == AVERROR_EOF) {
-            qDebug() << "读取到文件尾部";
-            break;
+
         }else {
             ERROR_BUF;
             continue;

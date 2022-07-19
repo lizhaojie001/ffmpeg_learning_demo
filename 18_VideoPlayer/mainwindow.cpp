@@ -79,7 +79,9 @@ void MainWindow::onPlayStateChanged(VideoPlayer *p)
 
 void MainWindow::onPlayTimeChanged(VideoPlayer *p)
 {
+    ui->SliderCurrent->blockSignals(true);
     ui->SliderCurrent->setValue(p->getCurrent());
+    ui->SliderCurrent->blockSignals(false);
 }
 
 void MainWindow::onVideoDuration(VideoPlayer *p)
@@ -130,7 +132,8 @@ void MainWindow::on_SliderVolume_valueChanged(int value)
 
 void MainWindow::on_SliderCurrent_valueChanged(int value)
 {
-  ui->LabelCurrent->setText(timeText(value));
+    ui->LabelCurrent->setText(timeText(value));
+    _player->setTime(value);
 }
 
 

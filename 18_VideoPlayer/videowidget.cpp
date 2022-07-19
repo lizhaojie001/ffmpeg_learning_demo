@@ -26,6 +26,7 @@ void VideoWidget::onPlayerVideoStateChanged(VideoPlayer *p)
 {
     if (p->state() == VideoPlayer::Stoped) {
         _freeImage();
+        update();
     }
 }
 
@@ -58,6 +59,7 @@ void VideoWidget::paintEvent(QPaintEvent *event)
 void VideoWidget::_freeImage()
 {
     if(_image) {
+        free(_image->bits());
         delete _image;
         _image = nullptr;
         update();

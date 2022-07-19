@@ -62,7 +62,6 @@ void VideoPlayer::readVideoPkt()
             _vMutex->unlock();
             if (pkt.pts != AV_NOPTS_VALUE) {
                 _vClock = av_q2d(_vStream->time_base) * pkt.dts;
-                qDebug() << "_vClock" <<_vClock;
             }
             int ret = avcodec_send_packet(_vCodecCtx,&pkt);
 
@@ -87,11 +86,15 @@ void VideoPlayer::readVideoPkt()
                       0,_vCodecCtx->height,
                       _vSwsOutFrame->data,_vSwsOutFrame->linesize);
 
-            while (_vClock > _aClock && _state == Playing) {
-                SDL_Delay(5);
+            if (_aStream) {
+                while (_vClock > _aClock && _state == Playing) {
+                    SDL_Delay(5);
+                }
             }
+            uint8_t * data = new uint8_t[_vSwsOutSpec.size];
+            memcpy(data,_vSwsOutFrame->data[0],_vSwsOutSpec.size);
             //发送信号数据
-            emit playerVideoDeceoded(this,_vSwsOutFrame->data[0],_vSwsOutSpec);
+            emit playerVideoDeceoded(this,data,_vSwsOutSpec);
 
 
 
@@ -121,6 +124,10 @@ int VideoPlayer::initSws()
     _vSwsOutSpec.width = _vCodecCtx->width >> 4 << 4;
     _vSwsOutSpec.height = _vCodecCtx->height >> 4 << 4;
     _vSwsOutSpec.pix_fmt = AV_PIX_FMT_RGB24;
+    _vSwsOutSpec.size = av_image_get_buffer_size( _vSwsOutSpec.pix_fmt,
+                                                 _vSwsOutSpec.width,
+                                                 _vSwsOutSpec.height
+                                                 ,1);
     _vSwsCtx = sws_getContext(_vCodecCtx->width,_vCodecCtx->height,_vCodecCtx->pix_fmt,
                               _vSwsOutSpec.width,_vSwsOutSpec.height ,_vSwsOutSpec.pix_fmt,
                               SWS_BILINEAR,nullptr,nullptr,nullptr);

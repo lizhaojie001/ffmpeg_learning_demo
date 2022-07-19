@@ -66,7 +66,6 @@ int VideoPlayer::readAudioPkt()
     _aMutex->unlock();
     if (pkt.pts != AV_NOPTS_VALUE) {
         _aClock = av_q2d(_aStream->time_base) * pkt.pts;
-        qDebug() << "_aClock" <<_aClock;
         emit timeChanged(this);
     }
 
@@ -111,9 +110,6 @@ int VideoPlayer::initSDL()
         qDebug() << "SDL_OpenAudio error" << SDL_GetError();
         return -1;
     }
-
-    //设置播放起始位置
-    SDL_PauseAudio(0);
 
     return ret;
 }

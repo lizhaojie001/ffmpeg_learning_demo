@@ -50,6 +50,7 @@ public:
         int width;
         int height;
         AVPixelFormat pix_fmt;
+        int size;
     };
 
     void play();
@@ -58,6 +59,7 @@ public:
     PlayState state();
     int getDuration();
     int getCurrent();
+    int setTime(int secound);
 
     bool isPlaying();
     void setFile(std::string& filename);
@@ -87,8 +89,8 @@ private:
 //    char * _filename;
     std::string _filename;
     AVFormatContext * _fmtCtx = nullptr;
-    int64_t _duration;
-
+    int _duration;
+    int seekTime = -1;
     int _is_planar = 0;
     int _per_sample_size = 0;
     int _per_sample_frame_size = 0;
