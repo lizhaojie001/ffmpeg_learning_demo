@@ -2,7 +2,7 @@
 #include "ui_mainwindow.h"
 #include <QFileDialog>
 #include <QDebug>
-
+#include "customslider.h"
 MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
@@ -18,6 +18,9 @@ MainWindow::MainWindow(QWidget *parent)
             ,&VideoWidget::onPlayerVideoDeceoded);
     connect(_player,&VideoPlayer::playStateChanged,ui->playerWidget
             ,&VideoWidget::onPlayerVideoStateChanged);
+    connect (ui->SliderCurrent,&CustomSlider::handclicked,this,[&](CustomSlider*s) {
+        _player->setTime (s->value ());
+    });
     ui->SliderVolume->setValue(50);
 
     enableControlUI(false);
@@ -79,9 +82,10 @@ void MainWindow::onPlayStateChanged(VideoPlayer *p)
 
 void MainWindow::onPlayTimeChanged(VideoPlayer *p)
 {
-    ui->SliderCurrent->blockSignals(true);
+//    ui->SliderCurrent->blockSignals(true);
     ui->SliderCurrent->setValue(p->getCurrent());
-    ui->SliderCurrent->blockSignals(false);
+//    ui->SliderCurrent->blockSignals(false);
+//    ui->SliderCurrent->update ();
 }
 
 void MainWindow::onVideoDuration(VideoPlayer *p)
@@ -133,7 +137,6 @@ void MainWindow::on_SliderVolume_valueChanged(int value)
 void MainWindow::on_SliderCurrent_valueChanged(int value)
 {
     ui->LabelCurrent->setText(timeText(value));
-    _player->setTime(value);
 }
 
 

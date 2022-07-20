@@ -9,7 +9,7 @@
 VideoPlayer::VideoPlayer(QObject *parent)
     : QObject{parent}
 {
-
+    qRegisterMetaType<SwsVideoSpec>("SwsVideoSpec&");//注册该类型
     //初始化子系统
     int ret = SDL_Init(SDL_INIT_AUDIO);
     if (ret != 0) {
@@ -33,6 +33,8 @@ VideoPlayer::VideoPlayer(QObject *parent)
 
 
 void VideoPlayer::free() {
+    while (!_vCanFree&&_vStream);
+    while (!_aCanFree&&_aStream);
     freeAudio();
     freeVideo();
     avformat_close_input(&_fmtCtx);
@@ -40,8 +42,8 @@ void VideoPlayer::free() {
 
 VideoPlayer::~VideoPlayer()
 {
-    _state = Playing;
-    stop();
+    _state = Stoped;
+    free ();
     delete _vMutex;
     delete _aMutex;
     delete _aPktList;
@@ -91,15 +93,15 @@ VideoPlayer::PlayState VideoPlayer::state()
 
 int VideoPlayer::getDuration()
 {
-    return  round(_duration / 1000000.0);
+    return _fmtCtx ? round(_fmtCtx->duration * av_q2d (AV_TIME_BASE_Q)) : 0 ;
 }
 
 int VideoPlayer::getCurrent()
 {
-    return ceil(_aClock);
+    return round(_aClock);
 }
 
-int VideoPlayer::setTime(int secound)
+void VideoPlayer::setTime(int secound)
 {
     seekTime = secound;
 }
@@ -225,6 +227,8 @@ int VideoPlayer::readFile()
             if (ret < 0) {
                 seekTime = -1;
             } else {
+                qDebug() << "seek 成功" << seekTime;
+                _vSeekTime = seekTime;
                 seekTime = -1;
                 clearAudioPktList();
                 clearVideoPktList();
@@ -238,7 +242,7 @@ int VideoPlayer::readFile()
             continue;
         }
 
-        qDebug() << _aPktList->size() <<  _vPktList->size();
+//        qDebug() << _aPktList->size() <<  _vPktList->size();
         ret = av_read_frame(_fmtCtx,&pkt) ;
         if (ret == 0) {
             if(pkt.stream_index == _aStream->index) {

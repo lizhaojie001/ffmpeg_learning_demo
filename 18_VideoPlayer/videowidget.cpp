@@ -1,5 +1,6 @@
 ﻿#include "videowidget.h"
 #include <QPainter>
+#include <QDebug>
 VideoWidget::VideoWidget(QWidget *parent)
     : QWidget{parent}
 {

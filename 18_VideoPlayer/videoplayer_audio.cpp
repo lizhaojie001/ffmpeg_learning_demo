@@ -13,7 +13,13 @@ int VideoPlayer::initAudioInfo()
     RET(initDecoder);
     //计算单声道采样数据大小
     _per_sample_size = av_get_bytes_per_sample(_aCodecCtx->sample_fmt);
+#ifdef Q_S_WIN
     _per_sample_frame_size = _per_sample_size * _aCodecCtx->ch_layout.nb_channels;
+#else
+    _per_sample_frame_size = _per_sample_size * _aCodecCtx->channels;
+
+#endif
+
     //是否是planar
     _is_planar = av_sample_fmt_is_planar(_aCodecCtx->sample_fmt);
     qDebug() << "_is_planar:  " << _is_planar;
@@ -118,7 +124,11 @@ int VideoPlayer::initSWR()
 {
     int ret = 0;
     _aSwrInSpec.chLayout = _aCodecCtx->channel_layout;
+#ifdef Q_S_WIN
     _aSwrInSpec.chs = _aCodecCtx->ch_layout.nb_channels;
+#else
+    _aSwrInSpec.chs = _aCodecCtx->channels;
+#endif
     _aSwrInSpec.sample_format = _aCodecCtx->sample_fmt;
     _aSwrInSpec.sample_rate = _aCodecCtx->sample_rate;
     _aSwrInSpec.bytesPerSampleFrame = av_get_bytes_per_sample(_aSwrInSpec.sample_format)
@@ -201,6 +211,7 @@ void VideoPlayer::doAudioCallback(Uint8 *stream, int len)
     int volume = _mute ? 0 : SDL_MIX_MAXVOLUME * _volume / 100.0;
     while (len > 0) {
         if (_state == Stoped) {
+            _aCanFree = true;
             break;
         }
         if ( _startOffsetIndex >= _swrOutSize ) {
@@ -235,6 +246,7 @@ void VideoPlayer::freeAudio() {
     _startOffsetIndex = 0;
     _swrOutSize = 0;
     _aClock = 0;
+    _aCanFree = false;
     // 停止播放
     SDL_PauseAudio(1);
     SDL_CloseAudio();

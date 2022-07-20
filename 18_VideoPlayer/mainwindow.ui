@@ -58,7 +58,11 @@
          <number>0</number>
         </property>
         <item row="0" column="0">
-         <widget class="VideoWidget" name="playerWidget" native="true"/>
+         <widget class="VideoWidget" name="playerWidget" native="true">
+          <property name="styleSheet">
+           <string notr="true">background-color: rgb(255, 255, 255);</string>
+          </property>
+         </widget>
         </item>
        </layout>
       </widget>
@@ -202,7 +206,7 @@
      <x>0</x>
      <y>0</y>
      <width>940</width>
-     <height>26</height>
+     <height>24</height>
     </rect>
    </property>
   </widget>

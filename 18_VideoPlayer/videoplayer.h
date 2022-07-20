@@ -59,7 +59,7 @@ public:
     PlayState state();
     int getDuration();
     int getCurrent();
-    int setTime(int secound);
+    void setTime(int secound);
 
     bool isPlaying();
     void setFile(std::string& filename);
@@ -114,6 +114,8 @@ private:
     SwsVideoSpec _vSwsOutSpec;
 
     double _vClock = -1;
+    int  _vSeekTime = -1;
+    bool _vCanFree = false;
 private:
     int initVideoInfo();
     void clearVideoPktList();
@@ -153,6 +155,7 @@ private:
 
     //音频时钟
     double _aClock = 0;
+    bool _aCanFree = false;
 
 private:
     int initAudioInfo();

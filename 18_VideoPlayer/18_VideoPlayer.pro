@@ -35,6 +35,11 @@ win32 {
         SDL_HOME=D:/SDL2-devel-2.0.22-mingw/SDL2-2.0.22/x86_64-w64-mingw32
 }
 
+macx {
+        FFMPEG_HOME=/usr/local/Cellar/ffmpeg/4.4.1_3
+        SDL_HOME=/usr/local/Cellar/sdl2/2.0.10
+}
+
 message($${FFMPEG_HOME})
 #message ($${SDL_HOME})
 INCLUDEPATH +=$${FFMPEG_HOME}/include
