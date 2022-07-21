@@ -35,6 +35,8 @@ VideoPlayer::VideoPlayer(QObject *parent)
 void VideoPlayer::free() {
     while (!_vCanFree&&_vStream);
     while (!_aCanFree&&_aStream);
+    while (!_fmtCtxCanFree);
+    _fmtCtxCanFree = false;
     freeAudio();
     freeVideo();
     avformat_close_input(&_fmtCtx);
@@ -249,17 +251,26 @@ int VideoPlayer::readFile()
                 addAudioPkt(pkt);
             } else if(pkt.stream_index == _vStream->index) {
                 addVideoPkt(pkt);
-            } else {
+            } else { //不是音视频,直接释放
                 av_packet_unref(&pkt);
             }
         } else if(ret == AVERROR_EOF) {
-
+            if(_aPktList->size() == 0 && _vPktList->size() == 0) {
+                //                播放完毕
+                _fmtCtxCanFree = true;
+                break;
+            }
         }else {
             ERROR_BUF;
             continue;
         }
     }
-
+    if (_fmtCtxCanFree) {
+        //播放完毕
+        stop();
+    } else {
+    _fmtCtxCanFree = true;
+    }
     return 0;
 
 }

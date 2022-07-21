@@ -97,7 +97,7 @@ private:
     int _imageSize = 0;
 
     QFile *  _file = nullptr;
-
+    bool _fmtCtxCanFree = false;
 /*************video *************/
 private:
     AVStream * _vStream = nullptr;
