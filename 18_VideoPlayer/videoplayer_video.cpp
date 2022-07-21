@@ -45,6 +45,10 @@ void VideoPlayer::addVideoPkt(AVPacket &pkt)
 void VideoPlayer::readVideoPkt()
 {
     while (true) {
+        if (_state == Paused && _vSeekTime == -1) {
+            continue;
+        }
+
         if (_state == Stoped) {
             _vCanFree = true;
             break;

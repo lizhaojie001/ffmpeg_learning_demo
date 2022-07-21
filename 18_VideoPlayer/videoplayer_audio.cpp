@@ -210,6 +210,9 @@ void VideoPlayer::doAudioCallback(Uint8 *stream, int len)
     SDL_memset(stream,0,len);
     int volume = _mute ? 0 : SDL_MIX_MAXVOLUME * _volume / 100.0;
     while (len > 0) {
+        if (_state == Paused) {
+            break;
+        }
         if (_state == Stoped) {
             _aCanFree = true;
             break;

@@ -40,6 +40,7 @@ void VideoPlayer::free() {
     freeAudio();
     freeVideo();
     avformat_close_input(&_fmtCtx);
+    qDebug() << "free";
 }
 
 VideoPlayer::~VideoPlayer()
@@ -66,6 +67,7 @@ void VideoPlayer::play()
       });
       rg.detach();
   } else {
+
       setState(Playing);
   }
 
@@ -75,8 +77,7 @@ void VideoPlayer::pause()
 {
     if (!isPlaying()) return;
       setState(Paused);
-
-}
+ }
 
 void VideoPlayer::stop()
 {
@@ -229,11 +230,11 @@ int VideoPlayer::readFile()
             if (ret < 0) {
                 seekTime = -1;
             } else {
+                clearAudioPktList();
+                clearVideoPktList();
                 qDebug() << "seek 成功" << seekTime;
                 _vSeekTime = seekTime;
                 seekTime = -1;
-                clearAudioPktList();
-                clearVideoPktList();
                 _aClock = 0;
                 _vClock = -1;
             }
@@ -269,7 +270,7 @@ int VideoPlayer::readFile()
         //播放完毕
         stop();
     } else {
-    _fmtCtxCanFree = true;
+        _fmtCtxCanFree = true;
     }
     return 0;
 
