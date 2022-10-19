@@ -37,7 +37,7 @@ win32 {
 }
 
 macx {
-        FFMPEG_HOME=/usr/local/Cellar/ffmpeg/4.4.1_3
+        FFMPEG_HOME=/usr/local/Cellar/ffmpeg/5.0.1_3
         SDL_HOME=/usr/local/Cellar/sdl2/2.0.10
 }
 
